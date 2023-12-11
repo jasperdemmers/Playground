@@ -21,13 +21,13 @@ network:
             dhcp4: no
             dhcp6: no
             addresses: [$static_ip/24]
-            gateway4: $gateway
             nameservers:
+                search: [$search_domains]
                 addresses: [1.1.1.1,1.0.0.1]
-            search: [$search_domains]
             routes:
                 - to: default
                   via: $gateway
 EOF
+sudo chmod 600 /etc/netplan/00-installer-config.yaml
 sudo netplan apply
 sudo reboot
