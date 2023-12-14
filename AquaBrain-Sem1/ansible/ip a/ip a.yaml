@@ -1,0 +1,8 @@
+- hosts: kubemaster
+  remote_user: admin
+  vars_files:
+    - ../vault.yaml
+
+  tasks:
+    - name: Show IP information
+      command: ip a

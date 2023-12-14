@@ -23,8 +23,21 @@ echo "admin:${admin_password}" | sudo chpasswd
 # Prompt the user for the static IP address
 read -p "Enter the static IP address: " static_ip
 
+# Prompt the user for the subnet mask bits
+read -p "Enter the subnet mask bits (eg: 255.255.255.0 = 24): " subnet_mask_bits
+
 # Prompt the user for the gateway
 read -p "Enter the gateway: " gateway
+
+# Ask if gateway is also the DNS server
+read -p "Is the gateway also the DNS server? (y/n): " gateway_is_dns_server
+
+# If gateway is not DNS server, ask for DNS server
+if [ "$gateway_is_dns_server" != "y" ]; then
+    read -p "Enter the DNS server(s) (separated by ,): " dns_server
+else
+    dns_server="$gateway"
+fi
 
 # Prompt the user for the search domains
 read -p "Enter the search domains (comma-separated): " search_domains
@@ -41,10 +54,10 @@ network:
         $interface:
             dhcp4: no
             dhcp6: no
-            addresses: [$static_ip/24]
+            addresses: [$static_ip/$subnet_mask_bits]
             nameservers:
                 search: [$search_domains]
-                addresses: [1.1.1.1,1.0.0.1]
+                addresses: [$dns_server]
             routes:
                 - to: default
                   via: $gateway
