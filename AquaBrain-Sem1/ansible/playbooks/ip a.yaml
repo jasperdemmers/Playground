@@ -1,0 +1,17 @@
+- hosts: 
+    - kubecluster
+  remote_user: admin
+  vars_files:
+    - ../vault.yaml
+
+  tasks:
+    - name: Show IP information
+      shell: ip a | awk '/inet / && /scope global / {print $2}'
+      register: ip_info
+
+    - name: Display IP information
+      debug:
+        var: ip_info.stdout_lines
+  
+    #- name: Show IP information
+      #command: ip a | awk '/inet / && /scope global / {print $2}'
