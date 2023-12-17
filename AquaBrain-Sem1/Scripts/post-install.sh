@@ -6,14 +6,13 @@ if [ $# -ne 2 ]; then
     exit 1
 fi
 
-#Input will aways be 2 digits, so 02. Change to 1 digit if needed
-if [ $2 -lt 10 ]; then
-    number="0$2"
-else
-    number=$2
-fi
-
 role=$1
+number=$2
+
+if [[ $number =~ ^0[1-9]$ ]]; then
+  # If so, remove the leading zero
+  number=${number#0}
+fi
 
 # Set IP address and hostname based on role and number
 if [ "$role" = "master" ]; then
