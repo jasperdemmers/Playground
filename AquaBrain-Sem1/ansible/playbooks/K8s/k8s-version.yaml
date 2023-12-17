@@ -1,0 +1,35 @@
+---
+- hosts: kubecluster
+  become: false
+  tasks:
+    - name: Init results list
+      set_fact:
+        tools_output: []
+
+    - name: Check version of the tools
+      shell: "{{ item.command }}"
+      register: result
+      ignore_errors: True
+      loop:
+        - name: "kubeadm"
+          command: "/usr/bin/kubeadm version"
+          regex: "GitVersion:\"(v[^\"]+)\""
+        - name: "kubectl"
+          command: "/usr/bin/kubectl version --client"
+          regex: "Version:\\s*(v[^\\s]+)"
+        - name: "kubelet"
+          command: "/usr/bin/kubelet --version"
+          regex: "v([\\d\\.]+)"
+        - name: "containerd"
+          command: "/usr/bin/containerd --version"
+          regex: "(\\d+\\.\\d+\\.\\d+)"
+
+    - name: Add tool results in dictionary
+      set_fact:
+        tools_output: "{{ tools_output | combine({ item.item.name: item.stdout | regex_search(item.item.regex, '\\1') }) }}"
+      loop: "{{ result.results }}"
+      when: not item.failed
+
+    - name: Display tools results
+      debug:
+        var: tools_output

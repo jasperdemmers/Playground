@@ -26,6 +26,7 @@ autoinstall:
       uri: http://archive.ubuntu.com/ubuntu
   packages:
     - openvswitch-switch
+    - open-vm-tools
   updates: security
   version: 1
   shutdown: reboot

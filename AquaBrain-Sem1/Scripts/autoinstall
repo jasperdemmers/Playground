@@ -1,0 +1,35 @@
+#cloud-config
+autoinstall:
+  storage:
+    layout:
+      name: lvm
+  identity:
+    hostname: ubuntu
+    username: aquabrain
+    password: $6$QkV84N.xIYrxytMH$Rpxaz0q2yi1K1AGSEpb7fa7nq5WEB/AbnNF8xTPzZP8cmgCo5UcdiiZlQz/S7QtxN/sDUWw1k2N1n06FIEdVE0
+  late-commands:
+  - 'echo "aquabrain ALL=(ALL) NOPASSWD:ALL" >> /target/etc/sudoers'
+  kernel:
+    package: linux-generic
+  keyboard:
+    layout: us
+    toggle: null
+    variant: ''
+  locale: en_US.UTF-8
+  ssh:
+    allow-pw: true
+    install-server: true
+    authorized-keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPWiqCyZS6UCk0xCMCyUkSY5MEqUByp+uCXNn+gv+5CO jasper.demmers@hotmail.com
+  apt:
+    preserve_sources_list: false
+    primary:
+    - arches: [amd64, i386]
+      uri: http://archive.ubuntu.com/ubuntu
+  packages:
+    - openvswitch-switch
+    - open-vm-tools
+    - net-tools
+  updates: security
+  version: 1
+  shutdown: reboot

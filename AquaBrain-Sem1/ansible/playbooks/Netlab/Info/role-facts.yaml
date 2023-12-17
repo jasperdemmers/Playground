@@ -1,0 +1,24 @@
+---
+- name: Create a VM from a template
+  hosts: localhost 
+  connection: local
+  gather_facts: no
+  vars_files:
+    - vault.yaml
+
+  tasks:
+  - name: Gather facts about all roles 
+    community.vmware.vmware_local_role_info:
+      hostname: "{{ vcenter_hostname }}"
+      username: "{{ vcenter_username }}"
+      password: "{{ vcenter_password }}"
+      validate_certs: no
+    register: role_facts
+  - name: Save role facts to a file
+    copy:
+      content: |
+        "{{ role_facts | to_nice_json }}"
+      dest: ./tmp/role_facts.json
+  - name: Display facts
+    debug:
+      msg: "{{role_facts}}"

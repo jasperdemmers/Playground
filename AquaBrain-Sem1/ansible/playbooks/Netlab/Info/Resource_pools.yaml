@@ -1,0 +1,13 @@
+- name: List all resource pools
+  hosts: localhost
+  gather_facts: no
+  vars_files:
+    - ./vault.yaml
+  tasks:
+    - name: Get resource pool
+      community.vmware.vmware_resource_pool_info:
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+      register: resource_pool_info

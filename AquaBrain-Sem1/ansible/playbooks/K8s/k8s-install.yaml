@@ -1,10 +1,12 @@
-- hosts: "master, workers"
-  remote_user: ansible
-  become: yes
-  become_method: sudo
-  become_user: root
+- hosts: 
+    - kubecluster
+  vars_files:
+    - ../vault.yaml
+  vars:
+    ansible_become_pass: "{{ vault_become_pass }}"
   gather_facts: yes
   connection: ssh
+  become: yes
   
   tasks:
    - name: Make the Swap inactive
@@ -83,10 +85,23 @@
          - containerd.io
        state: present
 
-   - name: Configure containerd.
+   - name: Hold containerd
+     dpkg_selections:
+       name: containerd.io
+       selection: hold
+
+   - name: Configure containerd (1/2).
      file:
        path: /etc/containerd
        state: directory
+
+   - name: Configure containerd (2/2).
+     template:
+       src: ../../containerd/config.toml.j2
+       dest: /etc/containerd/config.toml
+       owner: root
+       group: root
+       mode: '0644'
 
    - name: Enable containerd service, and start it.
      systemd: 
@@ -108,7 +123,7 @@
        mode: 0600
 
    - name: "Update cache & Full system update"
-     apt:ß
+     apt:
         update_cache: true
         upgrade: dist
         cache_valid_time: 3600
@@ -121,6 +136,26 @@
          - kubectl
          - kubelet
        state: present
+
+   - name: Hold Kubernetes packages
+     dpkg_selections:
+       name: "{{ item }}"
+       selection: hold
+     loop:
+       - kubeadm
+       - kubectl
+       - kubelet
+      
+   - name: Configure Kubelet (1/2).
+     file:
+       path: /var/lib/kubelet
+       state: directory
+
+   - name: Configure Kubelet (2/2).
+     template:
+       src: ../../K8s/kubeletConfig.yaml
+       dest: /var/lib/kubelet/config.yaml
+     become: yes
 
    - name: Enable service kubelet, and enable persistently
      service: 
