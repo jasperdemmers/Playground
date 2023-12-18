@@ -1,0 +1,265 @@
+- name: Create K8s VMs
+  hosts: localhost 
+  connection: local
+  gather_facts: no
+  vars_files:
+    - secrets.yaml
+  vars:
+    template_name: "DMZ74222 - Ubuntu"
+    master_destination_folder: "DMZ/DMZ74222/vlanB/Masters"
+    worker_destination_folder: "DMZ/DMZ74222/vlanB/Workers"
+    script_source: "../../../Scripts/post-install.sh"
+  tasks:
+    - name: Setup Master nodes
+      community.vmware.vmware_guest:
+        #vCenter specific
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        datacenter: "{{ vcenter_datacenter }}"
+        cluster: "{{ vcenter_cluster }}"
+
+        #Template specific
+        name: "DMZ74222 - K8s - Master{{ '%02d' | format(item|int) }}"
+        folder: "{{ master_destination_folder }}"
+        template: "{{ template_name }}"
+        resource_pool: "{{ vcenter_resource_pool }}"
+        datastore: "{{ vcenter_datastore_name }}"
+
+        state: poweredon
+        wait_for_ip_address: no
+      with_sequence: start=1 end=3
+      delegate_to: localhost
+
+    - name: Wait for Master nodes to boot
+      community.vmware.vmware_guest_info:
+        #vCenter specific
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        datacenter: "{{ vcenter_datacenter }}"
+
+        #VM Specific
+        name: "DMZ74222 - K8s - Master{{ '%02d' | format(item|int) }}"
+        folder: "{{ master_destination_folder }}"
+      register: guest_info
+      until: guest_info.instance.ipv4 is defined and guest_info.instance.ipv4 is not none
+      retries: 100
+      delay: 10
+      with_sequence: start=1 end=3
+      delegate_to: localhost
+
+    - name: Get script on Master nodes
+      community.vmware.vmware_vm_shell:
+        #vCenter specific
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        datacenter: "{{ vcenter_datacenter }}"
+        cluster: "{{ vcenter_cluster }}"
+
+        #VM Specific
+        vm_id: "DMZ74222 - K8s - Master{{ '%02d' | format(item|int) }}"
+        vm_username: "{{ vm_user }}"
+        vm_password: "{{ vm_pass }}"
+
+        #Shell
+        vm_shell: "/usr/bin/curl"
+        vm_shell_args: "-o ~/post-install.sh -H 'Authorization: token {{ github_token }}' -H 'Accept: application/vnd.github.v3.raw' -L https://api.github.com/repos/jasperdemmers/Playground/contents/AquaBrain-Sem1/Scripts/post-install.sh"
+        wait_for_process: yes
+      register: shell_command_out
+      until: shell_command_out is succeeded
+      retries: 50
+      delay: 10
+      with_sequence: start=1 end=3
+      delegate_to: localhost
+
+    - name: Make script executable on Master nodes
+      community.vmware.vmware_vm_shell:
+        #vCenter specific
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        datacenter: "{{ vcenter_datacenter }}"
+        cluster: "{{ vcenter_cluster }}"
+
+        #VM Specific
+        vm_id: "DMZ74222 - K8s - Master{{ '%02d' | format(item|int) }}"
+        vm_username: "{{ vm_user }}"
+        vm_password: "{{ vm_pass }}"
+
+        #Shell
+        vm_shell: "/bin/bash"
+        vm_shell_args: "-c 'sudo chmod +x ~/post-install.sh'"
+        wait_for_process: yes
+      with_sequence: start=1 end=3
+      delegate_to: localhost
+
+    - name: Run script on Master nodes
+      community.vmware.vmware_vm_shell:
+        #vCenter specific
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        datacenter: "{{ vcenter_datacenter }}"
+        cluster: "{{ vcenter_cluster }}"
+
+        #VM Specific
+        vm_id: "DMZ74222 - K8s - Master{{ '%02d' | format(item|int) }}"
+        vm_username: "{{ vm_user }}"
+        vm_password: "{{ vm_pass }}"
+
+        #Shell
+        vm_shell: "/bin/bash"
+        vm_shell_args: "-c 'sudo ~/post-install.sh master {{ '%02d' | format(item|int) }}'"
+        wait_for_process: yes
+      with_sequence: start=1 end=3
+      delegate_to: localhost
+
+    - name: Restart Master nodes
+      community.vmware.vmware_guest_powerstate:
+        #vCenter specific
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        datacenter: "{{ vcenter_datacenter }}"
+
+        #VM Specific
+        folder: "{{ master_destination_folder }}"
+        name: "DMZ74222 - K8s - Master{{ '%02d' | format(item|int) }}"
+        state: restarted
+      with_sequence: start=1 end=3
+      delegate_to: localhost
+
+    - name: Setup Worker nodes
+      community.vmware.vmware_guest:
+        #vCenter specific
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        datacenter: "{{ vcenter_datacenter }}"
+        cluster: "{{ vcenter_cluster }}"
+
+        #Template specific
+        name: "DMZ74222 - K8s - Worker{{ '%02d' | format(item|int) }}"
+        folder: "{{ worker_destination_folder }}"
+        template: "{{ template_name }}"
+        resource_pool: "{{ vcenter_resource_pool }}"
+        datastore: "{{ vcenter_datastore_name }}"
+
+        state: poweredon
+        wait_for_ip_address: no
+      with_sequence: start=1 end=10
+      delegate_to: localhost
+
+    - name: Wait for Worker nodes to boot
+      community.vmware.vmware_guest_info:
+        #vCenter specific
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        datacenter: "{{ vcenter_datacenter }}"
+
+        #VM Specific
+        name: "DMZ74222 - K8s - Worker{{ '%02d' | format(item|int) }}"
+        folder: "{{ worker_destination_folder }}"
+      register: guest_info
+      until: guest_info.instance.ipv4 is defined and guest_info.instance.ipv4 is not none
+      retries: 100
+      delay: 10
+      with_sequence: start=1 end=10
+      delegate_to: localhost
+
+    - name: Get script on Worker nodes
+      community.vmware.vmware_vm_shell:
+        #vCenter specific
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        datacenter: "{{ vcenter_datacenter }}"
+        cluster: "{{ vcenter_cluster }}"
+
+        #VM Specific
+        vm_id: "DMZ74222 - K8s - Worker{{ '%02d' | format(item|int) }}"
+        vm_username: "{{ vm_user }}"
+        vm_password: "{{ vm_pass }}"
+
+        #Shell
+        vm_shell: "/usr/bin/curl"
+        vm_shell_args: "-o ~/post-install.sh -H 'Authorization: token {{ github_token }}' -H 'Accept: application/vnd.github.v3.raw' -L https://api.github.com/repos/jasperdemmers/Playground/contents/AquaBrain-Sem1/Scripts/post-install.sh"
+        wait_for_process: yes
+      register: shell_command_out
+      until: shell_command_out is succeeded
+      retries: 50
+      delay: 10
+      with_sequence: start=1 end=10
+      delegate_to: localhost
+
+    - name: Make script executable on Worker nodes
+      community.vmware.vmware_vm_shell:
+        #vCenter specific
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        datacenter: "{{ vcenter_datacenter }}"
+        cluster: "{{ vcenter_cluster }}"
+
+        #VM Specific
+        vm_id: "DMZ74222 - K8s - Worker{{ '%02d' | format(item|int) }}"
+        vm_username: "{{ vm_user }}"
+        vm_password: "{{ vm_pass }}"
+
+        #Shell
+        vm_shell: "/bin/bash"
+        vm_shell_args: "-c 'sudo chmod +x ~/post-install.sh'"
+        wait_for_process: yes
+      with_sequence: start=1 end=10
+      delegate_to: localhost
+
+    - name: Run script on Worker nodes
+      community.vmware.vmware_vm_shell:
+        #vCenter specific
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        datacenter: "{{ vcenter_datacenter }}"
+        cluster: "{{ vcenter_cluster }}"
+
+        #VM Specific
+        vm_id: "DMZ74222 - K8s - Worker{{ '%02d' | format(item|int) }}"
+        vm_username: "{{ vm_user }}"
+        vm_password: "{{ vm_pass }}"
+
+        #Shell
+        vm_shell: "/bin/bash"
+        vm_shell_args: "-c 'sudo ~/post-install.sh worker {{ '%02d' | format(item|int) }}'"
+        wait_for_process: yes
+      with_sequence: start=1 end=10
+      delegate_to: localhost
+
+    - name: Restart Worker nodes
+      community.vmware.vmware_guest_powerstate:
+        #vCenter specific
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        datacenter: "{{ vcenter_datacenter }}"
+
+        #VM Specific
+        folder: "{{ worker_destination_folder }}"
+        name: "DMZ74222 - K8s - Worker{{ '%02d' | format(item|int) }}"
+        state: restarted
+      with_sequence: start=1 end=10
+      delegate_to: localhost

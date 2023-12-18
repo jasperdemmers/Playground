@@ -1,0 +1,27 @@
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: InitConfiguration
+nodeRegistration:
+  name: "master01.aquabrain.lan"
+  criSocket: "/var/run/dockershim.sock"
+  kubeletExtraArgs:
+    cgroup-driver: systemd
+    fail-swap-on: "false"
+localAPIEndpoint:
+  advertiseAddress: "k8s.aquabrain.lan"
+  bindPort: 6443
+
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: ClusterConfiguration
+networking:
+  serviceSubnet: "10.96.0.0/12"
+  podSubnet: "10.244.0.0/16"  # Flannel's default Subnet
+  dnsDomain: "cluster.lan"
+kubernetesVersion: "stable"
+controlPlaneEndpoint: "k8s.aquabrain.lan:6443"  # Replace with your values
+apiServer:
+  certSANs:
+  - "10.1.0.2"
+  - "master01.aquabrain.lan"
+  - "master02.aquabrain.lan"
+  - "master03.aquabrain.lan"

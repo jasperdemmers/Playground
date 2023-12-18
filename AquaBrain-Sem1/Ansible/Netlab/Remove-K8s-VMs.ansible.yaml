@@ -1,0 +1,41 @@
+- name: Create K8s VMs
+  hosts: localhost 
+  connection: local
+  gather_facts: no
+  vars_files:
+    - secrets.yaml
+  vars:
+    template_name: "DMZ74222 - Ubuntu"
+    vlanB_folder: "DMZ/DMZ74222/vlanB"
+  tasks:
+    - name: Remove Master noded
+      community.vmware.vmware_guest:
+        #vCenter specific
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        datacenter: "{{ vcenter_datacenter }}"
+        cluster: "{{ vcenter_cluster }}"
+        
+        folder: "{{ vlanB_folder }}"
+        name: "DMZ74222 - K8s - Master{{ '%02d' | format(item|int) }}"
+        state: absent
+        force: true
+      with_sequence: start=1 end=3
+      delegate_to: localhost
+
+    - name: Remove Worker nodes
+      community.vmware.vmware_guest:
+        #vCenter specific
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        datacenter: "{{ vcenter_datacenter }}"
+        folder: "{{ vlanB_folder }}"
+        name: "DMZ74222 - K8s - Worker{{ '%02d' | format(item|int) }}"
+        state: absent
+        force: true
+      with_sequence: start=1 end=10
+      delegate_to: localhost

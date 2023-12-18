@@ -1,0 +1,91 @@
+- hosts: 
+    - kubemaster
+  vars_files:
+    - secrets.yaml
+  vars:
+    ansible_become_pass: "{{ vault_become_pass }}"
+    LB_INTERFACE: "ens33"
+    LB_ROUTER_ID: 51
+    LB_AUTH_PASS: 42
+    LB_APISERVER_VIP: "10.1.0.2"
+    LB_APISERVER_DEST_PORT : 6443
+  gather_facts: yes
+  connection: ssh
+  become: yes
+  
+  tasks:
+    - name: Ensure /etc/kubernetes exists.
+      file:
+        path: /etc/kubernetes
+        state: directory
+
+    - name: copy kubeadm configuration file
+      template:
+        src: ../../K8s/kubeadm.yaml
+        dest: /etc/kubernetes/kubeadm.yaml
+        owner: root
+        group: root
+        mode: '0600'
+
+    - name: copy flannel configuration file
+      template:
+        src: ../../K8s/kube-flannel.yaml
+        dest: /etc/kubernetes/kube-flannel.yaml
+        owner: root
+        group: root
+        mode: '0600'
+
+    - name: Ensure /etc/keepalived exists
+      file:
+        path: /etc/keepalived
+        state: directory
+      
+    - name: Copy keepalived.conf
+      template:
+        src: ../../K8s/keepalived.conf.j2
+        dest: /etc/keepalived/keepalived.conf
+        owner: root
+        group: root
+        mode: '0644'
+    
+    - name: Copy check_apiserver.sh
+      template:
+        src: ../../K8s/check_apiserver.sh.j2
+        dest: /etc/keepalived/check_apiserver.sh
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Ensure /etc/haproxy exists
+      file:
+        path: /etc/haproxy
+        state: directory
+
+    - name: Copy haproxy.cfg
+      template:
+        src: ../../K8s/haproxy.cfg.j2
+        dest: /etc/haproxy/haproxy.cfg
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Ensure /etc/kubernetes/manifests exists
+      file:
+        path: /etc/kubernetes/manifests
+        state: directory
+
+    - name: Copy manifests/haproxy.yaml.j2
+      template:
+        src: ../../K8s/manifests/haproxy.yaml.j2
+        dest: /etc/kubernetes/manifests/haproxy.yaml
+        owner: root
+        group: root
+        mode: '0644'
+    
+    - name: Copy manifests/keepalived.yaml
+      template:
+        src: ../../K8s/manifests/keepalived.yaml
+        dest: /etc/kubernetes/manifests/keepalived.yaml
+        owner: root
+        group: root
+        mode: '0644'
