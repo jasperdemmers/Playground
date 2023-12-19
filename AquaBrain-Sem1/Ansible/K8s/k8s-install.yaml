@@ -138,6 +138,16 @@
           - kubelet
         state: present
 
+    - name: Define kubeadm version.
+      set_fact:
+        kubeadm_version: "v1.29.0"
+    
+    - name: Download kubeadm binary.
+      get_url:
+        url: "https://dl.k8s.io/release/{{ kubeadm_version }}/bin/linux/amd64/kubeadm"
+        dest: /usr/local/bin/kubeadm
+        mode: '0755'
+
     - name: Hold Kubernetes packages
       dpkg_selections:
         name: "{{ item }}"

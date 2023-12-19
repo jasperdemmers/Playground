@@ -1,0 +1,2 @@
+worker_join_command: "kubeadm join 10.1.0.2:8443 --token 3gswv8.j5jyx5kg9j5ah8wz --discovery-token-ca-cert-hash sha256:484e3645df08f86e6cdbdc143a3767718837ec7d5eb0aae1e784876a0c0a8b7b "
+certificate_key: "5dca3ee056f04294d07791660f825129fd85fd81ccf8fb48c4bb8b89557777e0"

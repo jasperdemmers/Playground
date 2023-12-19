@@ -2,7 +2,7 @@ apiVersion: kubeadm.k8s.io/v1beta3
 kind: InitConfiguration
 nodeRegistration:
   name: "{{ inventory_hostname.split('.')[0] }}"
-  criSocket: "/run/containerd/containerd.sock"
+  criSocket: "unix:///run/containerd/containerd.sock"
   kubeletExtraArgs:
     cgroup-driver: systemd
     fail-swap-on: "false"

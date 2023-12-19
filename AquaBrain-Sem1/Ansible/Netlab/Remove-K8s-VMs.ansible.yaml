@@ -24,6 +24,9 @@
         force: true
       with_sequence: start=1 end=3
       delegate_to: localhost
+      async: 1000
+      poll: 0
+      register: async_jobs
 
     - name: Remove Worker nodes
       community.vmware.vmware_guest:
@@ -39,3 +42,6 @@
         force: true
       with_sequence: start=1 end=10
       delegate_to: localhost
+      async: 1000
+      poll: 0
+      register: async_jobs

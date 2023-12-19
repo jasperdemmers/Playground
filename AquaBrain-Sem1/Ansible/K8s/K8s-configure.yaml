@@ -19,6 +19,8 @@
       file:
         path: /etc/kubernetes
         state: directory
+      async: 1000
+      poll: 0
 
     - name: copy kubeadm configuration file
       template:
@@ -40,6 +42,8 @@
       file:
         path: /etc/keepalived
         state: directory
+      async: 1000
+      poll: 0
       
     - name: Copy keepalived.conf
       template:
@@ -61,6 +65,8 @@
       file:
         path: /etc/haproxy
         state: directory
+      async: 1000
+      poll: 0
 
     - name: Copy haproxy.cfg
       template:
@@ -74,6 +80,8 @@
       file:
         path: /etc/kubernetes/manifests
         state: directory
+      async: 1000
+      poll: 0
 
     - name: Copy manifests/haproxy.yaml.j2
       template:

@@ -1,6 +1,6 @@
 - name: Initialize K8s Cluster
   hosts:
-    - kubecluster
+    - kubemaster-MASTER
   vars_files:
     - secrets.yaml
   vars:
@@ -8,20 +8,13 @@
     ansible_ssh_common_args: '-o UserKnownHostsFile=./known_hosts'
   gather_facts: yes
   connection: ssh
-  become: yes
   tasks:
-    - name: Initialize Master01
+    - name: Initialize Master
       shell: "kubeadm init --config=/etc/kubernetes/kubeadm.yaml --upload-certs >> cluster_initialized.log"
+      become: yes
       args:
         chdir: /home/aquabrain
         creates: cluster_initialized.log
-      register: init_output
-      delegate_to: master01.aquabrain.lan
-    - name: Extract join command
-      set_fact:
-        join_command: "{{ init_output.stdout_lines | join('\n') | regex_search('(kubeadm join 10.1.0.2:8443 --token [^\\n]* --control-plane --certificate-key [^\\n]*)', '\\1', multiline=True) }}"
-      run_once: true
-      delegate_to: master01.aquabrain.lan
     - name: Ensure .kube directory exists
       file:
         path: "/home/aquabrain/.kube"
@@ -29,8 +22,8 @@
         owner: aquabrain
         group: aquabrain
         mode: '0755'
-      delegate_to: master01.aquabrain.lan
     - name: Copy administered kube config file
+      become: yes
       copy:
         src: "/etc/kubernetes/admin.conf"
         dest: "/home/aquabrain/.kube/config"
@@ -38,16 +31,64 @@
         group: aquabrain
         mode: '0644'
         remote_src: true
-      delegate_to: master01.aquabrain.lan
     - name: Apply CNI (Flannel)
+      become: yes
       shell: "kubectl apply -f /etc/kubernetes/kube-flannel.yaml"
       environment:
         KUBECONFIG: "/home/aquabrain/.kube/config"
-      delegate_to: master01.aquabrain.lan
-    - name: Join other masters
-      shell: "{{ join_command }}"
-      delegate_to: "{{ item }}"
-      loop: "{{ groups['kubemaster'] }}"
-      loop_control:
-        label: "{{ item }}"
-      when: inventory_hostname != 'master01.aquabrain.lan'
+    - name: Create join command for worker nodes
+      become: yes
+      shell: "kubeadm token create --print-join-command"
+      register: worker_join_command
+    - name: Extract certificate key for control-plane nodes
+      become: yes
+      shell: "kubeadm init phase upload-certs --upload-certs | grep -vw -e certificate -e Namespace"
+      register: certificate_key
+      run_once: true
+    - name: Create temp file with token data
+      copy:
+        content: |
+          worker_join_command: "{{ worker_join_command.stdout }}"
+          certificate_key: "{{ certificate_key.stdout }}"
+        dest: tmp/join.yaml
+      delegate_to: localhost
+
+- name: Other Masters Join K8s cluster
+  hosts:
+    - kubemaster-BACKUP
+  vars_files:
+    - secrets.yaml
+  vars:
+    ansible_become_pass: "{{ vault_become_pass }}"
+    ansible_ssh_common_args: '-o UserKnownHostsFile=./known_hosts'
+  gather_facts: yes
+  connection: ssh
+  tasks:
+    - name: Get join command and cert key
+      slurp:
+        src: tmp/join.yaml
+      register: join_data
+      delegate_to: localhost
+    - name: Join K8s cluster
+      become: yes
+      shell: "{{ (join_data['content'] | b64decode | from_yaml)['worker_join_command'] }} --control-plane --certificate-key {{ (join_data['content'] | b64decode | from_yaml)['certificate_key'] }}"
+
+- name: Workers Join K8s cluster
+  hosts:
+    - kubeworker
+  vars_files:
+    - secrets.yaml
+  vars:
+    ansible_become_pass: "{{ vault_become_pass }}"
+    ansible_ssh_common_args: '-o UserKnownHostsFile=./known_hosts'
+  gather_facts: yes
+  connection: ssh
+  tasks:
+    - name: Get join command and cert key
+      slurp:
+        src: tmp/join.yaml
+      register: join_data
+      delegate_to: localhost
+    - name: Join K8s cluster
+      become: yes
+      shell: "{{ (join_data['content'] | b64decode | from_yaml)['worker_join_command'] }}"

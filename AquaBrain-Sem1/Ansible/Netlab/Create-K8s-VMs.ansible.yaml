@@ -31,6 +31,9 @@
         wait_for_ip_address: no
       with_sequence: start=1 end=3
       delegate_to: localhost
+      async: 1000
+      poll: 0
+      register: create_master_jobs
 
     - name: Wait for Master nodes to boot
       community.vmware.vmware_guest_info:
@@ -70,8 +73,8 @@
         vm_shell: "/usr/bin/curl"
         vm_shell_args: "-o ~/post-install.sh -H 'Authorization: token {{ github_token }}' -H 'Accept: application/vnd.github.v3.raw' -L https://api.github.com/repos/jasperdemmers/Playground/contents/AquaBrain-Sem1/Scripts/post-install.sh"
         wait_for_process: yes
-      register: shell_command_out
-      until: shell_command_out is succeeded
+      register: master_shell_command_out
+      until: master_shell_command_out is succeeded
       retries: 50
       delay: 10
       with_sequence: start=1 end=3
@@ -98,6 +101,7 @@
         wait_for_process: yes
       with_sequence: start=1 end=3
       delegate_to: localhost
+      register: master_executable_script
 
     - name: Run script on Master nodes
       community.vmware.vmware_vm_shell:
@@ -119,6 +123,7 @@
         vm_shell_args: "-c 'sudo ~/post-install.sh master {{ '%02d' | format(item|int) }}'"
         wait_for_process: yes
       with_sequence: start=1 end=3
+      register: master_run_script
       delegate_to: localhost
 
     - name: Restart Master nodes
@@ -136,6 +141,8 @@
         state: restarted
       with_sequence: start=1 end=3
       delegate_to: localhost
+      async: 1000
+      poll: 0
 
     - name: Setup Worker nodes
       community.vmware.vmware_guest:
@@ -158,6 +165,9 @@
         wait_for_ip_address: no
       with_sequence: start=1 end=10
       delegate_to: localhost
+      async: 1000
+      poll: 0
+      register: create_worker_jobs
 
     - name: Wait for Worker nodes to boot
       community.vmware.vmware_guest_info:
@@ -171,8 +181,8 @@
         #VM Specific
         name: "DMZ74222 - K8s - Worker{{ '%02d' | format(item|int) }}"
         folder: "{{ worker_destination_folder }}"
-      register: guest_info
-      until: guest_info.instance.ipv4 is defined and guest_info.instance.ipv4 is not none
+      register: worker_guest_info
+      until: worker_guest_info.instance.ipv4 is defined and guest_info.instance.ipv4 is not none
       retries: 100
       delay: 10
       with_sequence: start=1 end=10
@@ -197,8 +207,8 @@
         vm_shell: "/usr/bin/curl"
         vm_shell_args: "-o ~/post-install.sh -H 'Authorization: token {{ github_token }}' -H 'Accept: application/vnd.github.v3.raw' -L https://api.github.com/repos/jasperdemmers/Playground/contents/AquaBrain-Sem1/Scripts/post-install.sh"
         wait_for_process: yes
-      register: shell_command_out
-      until: shell_command_out is succeeded
+      register: worker_shell_command_out
+      until: worker_shell_command_out is succeeded
       retries: 50
       delay: 10
       with_sequence: start=1 end=10
@@ -225,6 +235,7 @@
         wait_for_process: yes
       with_sequence: start=1 end=10
       delegate_to: localhost
+      register: worker_executable_script
 
     - name: Run script on Worker nodes
       community.vmware.vmware_vm_shell:
@@ -247,6 +258,7 @@
         wait_for_process: yes
       with_sequence: start=1 end=10
       delegate_to: localhost
+      register: worker_run_script
 
     - name: Restart Worker nodes
       community.vmware.vmware_guest_powerstate:
@@ -263,3 +275,5 @@
         state: restarted
       with_sequence: start=1 end=10
       delegate_to: localhost
+      async: 1000
+      poll: 0
