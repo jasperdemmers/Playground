@@ -8,7 +8,7 @@
     template_name: "DMZ74222 - Ubuntu"
     master_destination_folder: "DMZ/DMZ74222/vlanB/Masters"
     worker_destination_folder: "DMZ/DMZ74222/vlanB/Workers"
-    script_source: "../../../Scripts/post-install.sh"
+    script_source: "../../Scripts/post-install.sh"
   tasks:
     - name: Setup Master nodes
       community.vmware.vmware_guest:

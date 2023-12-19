@@ -1,0 +1,636 @@
+- name: Connect to Cisco VPN for Netlab Access
+  hosts: localhost
+  gather_facts: False
+  vars_files:
+    - Netlab/secrets.yaml
+  tasks:
+    - name: Connect Cisco VPN
+      shell: |
+        /opt/cisco/secureclient/bin/vpn -s connect vpnnetlab.fhict.nl << "EOF"
+        0
+        {{ cac_username }}
+        {{ cac_password }}
+        y
+        EOF
+      args:
+        executable: /bin/bash
+- name: Create K8s VMs
+  hosts: localhost 
+  connection: local
+  gather_facts: no
+  vars_files:
+    - Netlab/secrets.yaml
+  vars:
+    template_name: "DMZ74222 - Ubuntu"
+    master_destination_folder: "DMZ/DMZ74222/vlanB/Masters"
+    worker_destination_folder: "DMZ/DMZ74222/vlanB/Workers"
+    script_source: "../Scripts/post-install.sh"
+  tasks:
+    - name: Setup Master nodes
+      community.vmware.vmware_guest:
+        #vCenter specific
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        datacenter: "{{ vcenter_datacenter }}"
+        cluster: "{{ vcenter_cluster }}"
+
+        #Template specific
+        name: "DMZ74222 - K8s - Master{{ '%02d' | format(item|int) }}"
+        folder: "{{ master_destination_folder }}"
+        template: "{{ template_name }}"
+        resource_pool: "{{ vcenter_resource_pool }}"
+        datastore: "{{ vcenter_datastore_name }}"
+
+        state: poweredon
+        wait_for_ip_address: no
+      with_sequence: start=1 end=3
+      delegate_to: localhost
+
+    - name: Wait for Master nodes to boot
+      community.vmware.vmware_guest_info:
+        #vCenter specific
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        datacenter: "{{ vcenter_datacenter }}"
+
+        #VM Specific
+        name: "DMZ74222 - K8s - Master{{ '%02d' | format(item|int) }}"
+        folder: "{{ master_destination_folder }}"
+      register: guest_info
+      until: guest_info.instance.ipv4 is defined and guest_info.instance.ipv4 is not none
+      retries: 100
+      delay: 10
+      with_sequence: start=1 end=3
+      delegate_to: localhost
+
+    - name: Get script on Master nodes
+      community.vmware.vmware_vm_shell:
+        #vCenter specific
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        datacenter: "{{ vcenter_datacenter }}"
+        cluster: "{{ vcenter_cluster }}"
+
+        #VM Specific
+        vm_id: "DMZ74222 - K8s - Master{{ '%02d' | format(item|int) }}"
+        vm_username: "{{ vm_user }}"
+        vm_password: "{{ vm_pass }}"
+
+        #Shell
+        vm_shell: "/usr/bin/curl"
+        vm_shell_args: "-o ~/post-install.sh -H 'Authorization: token {{ github_token }}' -H 'Accept: application/vnd.github.v3.raw' -L https://api.github.com/repos/jasperdemmers/Playground/contents/AquaBrain-Sem1/Scripts/post-install.sh"
+        wait_for_process: yes
+      register: shell_command_out
+      until: shell_command_out is succeeded
+      retries: 50
+      delay: 10
+      with_sequence: start=1 end=3
+      delegate_to: localhost
+
+    - name: Make script executable on Master nodes
+      community.vmware.vmware_vm_shell:
+        #vCenter specific
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        datacenter: "{{ vcenter_datacenter }}"
+        cluster: "{{ vcenter_cluster }}"
+
+        #VM Specific
+        vm_id: "DMZ74222 - K8s - Master{{ '%02d' | format(item|int) }}"
+        vm_username: "{{ vm_user }}"
+        vm_password: "{{ vm_pass }}"
+
+        #Shell
+        vm_shell: "/bin/bash"
+        vm_shell_args: "-c 'sudo chmod +x ~/post-install.sh'"
+        wait_for_process: yes
+      with_sequence: start=1 end=3
+      delegate_to: localhost
+
+    - name: Run script on Master nodes
+      community.vmware.vmware_vm_shell:
+        #vCenter specific
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        datacenter: "{{ vcenter_datacenter }}"
+        cluster: "{{ vcenter_cluster }}"
+
+        #VM Specific
+        vm_id: "DMZ74222 - K8s - Master{{ '%02d' | format(item|int) }}"
+        vm_username: "{{ vm_user }}"
+        vm_password: "{{ vm_pass }}"
+
+        #Shell
+        vm_shell: "/bin/bash"
+        vm_shell_args: "-c 'sudo ~/post-install.sh master {{ '%02d' | format(item|int) }}'"
+        wait_for_process: yes
+      with_sequence: start=1 end=3
+      delegate_to: localhost
+
+    - name: Restart Master nodes
+      community.vmware.vmware_guest_powerstate:
+        #vCenter specific
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        datacenter: "{{ vcenter_datacenter }}"
+
+        #VM Specific
+        folder: "{{ master_destination_folder }}"
+        name: "DMZ74222 - K8s - Master{{ '%02d' | format(item|int) }}"
+        state: restarted
+      with_sequence: start=1 end=3
+      delegate_to: localhost
+
+    - name: Setup Worker nodes
+      community.vmware.vmware_guest:
+        #vCenter specific
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        datacenter: "{{ vcenter_datacenter }}"
+        cluster: "{{ vcenter_cluster }}"
+
+        #Template specific
+        name: "DMZ74222 - K8s - Worker{{ '%02d' | format(item|int) }}"
+        folder: "{{ worker_destination_folder }}"
+        template: "{{ template_name }}"
+        resource_pool: "{{ vcenter_resource_pool }}"
+        datastore: "{{ vcenter_datastore_name }}"
+
+        state: poweredon
+        wait_for_ip_address: no
+      with_sequence: start=1 end=10
+      delegate_to: localhost
+
+    - name: Wait for Worker nodes to boot
+      community.vmware.vmware_guest_info:
+        #vCenter specific
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        datacenter: "{{ vcenter_datacenter }}"
+
+        #VM Specific
+        name: "DMZ74222 - K8s - Worker{{ '%02d' | format(item|int) }}"
+        folder: "{{ worker_destination_folder }}"
+      register: guest_info
+      until: guest_info.instance.ipv4 is defined and guest_info.instance.ipv4 is not none
+      retries: 100
+      delay: 10
+      with_sequence: start=1 end=10
+      delegate_to: localhost
+
+    - name: Get script on Worker nodes
+      community.vmware.vmware_vm_shell:
+        #vCenter specific
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        datacenter: "{{ vcenter_datacenter }}"
+        cluster: "{{ vcenter_cluster }}"
+
+        #VM Specific
+        vm_id: "DMZ74222 - K8s - Worker{{ '%02d' | format(item|int) }}"
+        vm_username: "{{ vm_user }}"
+        vm_password: "{{ vm_pass }}"
+
+        #Shell
+        vm_shell: "/usr/bin/curl"
+        vm_shell_args: "-o ~/post-install.sh -H 'Authorization: token {{ github_token }}' -H 'Accept: application/vnd.github.v3.raw' -L https://api.github.com/repos/jasperdemmers/Playground/contents/AquaBrain-Sem1/Scripts/post-install.sh"
+        wait_for_process: yes
+      register: shell_command_out
+      until: shell_command_out is succeeded
+      retries: 50
+      delay: 10
+      with_sequence: start=1 end=10
+      delegate_to: localhost
+
+    - name: Make script executable on Worker nodes
+      community.vmware.vmware_vm_shell:
+        #vCenter specific
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        datacenter: "{{ vcenter_datacenter }}"
+        cluster: "{{ vcenter_cluster }}"
+
+        #VM Specific
+        vm_id: "DMZ74222 - K8s - Worker{{ '%02d' | format(item|int) }}"
+        vm_username: "{{ vm_user }}"
+        vm_password: "{{ vm_pass }}"
+
+        #Shell
+        vm_shell: "/bin/bash"
+        vm_shell_args: "-c 'sudo chmod +x ~/post-install.sh'"
+        wait_for_process: yes
+      with_sequence: start=1 end=10
+      delegate_to: localhost
+
+    - name: Run script on Worker nodes
+      community.vmware.vmware_vm_shell:
+        #vCenter specific
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        datacenter: "{{ vcenter_datacenter }}"
+        cluster: "{{ vcenter_cluster }}"
+
+        #VM Specific
+        vm_id: "DMZ74222 - K8s - Worker{{ '%02d' | format(item|int) }}"
+        vm_username: "{{ vm_user }}"
+        vm_password: "{{ vm_pass }}"
+
+        #Shell
+        vm_shell: "/bin/bash"
+        vm_shell_args: "-c 'sudo ~/post-install.sh worker {{ '%02d' | format(item|int) }}'"
+        wait_for_process: yes
+      with_sequence: start=1 end=10
+      delegate_to: localhost
+
+    - name: Restart Worker nodes
+      community.vmware.vmware_guest_powerstate:
+        #vCenter specific
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: no
+        datacenter: "{{ vcenter_datacenter }}"
+
+        #VM Specific
+        folder: "{{ worker_destination_folder }}"
+        name: "DMZ74222 - K8s - Worker{{ '%02d' | format(item|int) }}"
+        state: restarted
+      with_sequence: start=1 end=10
+      delegate_to: localhost
+- name: Disconnect Cisco VPN and connect OVPN for Internal access
+  hosts: localhost
+  gather_facts: False
+  become: true
+  vars_files:
+    - K8s/secrets.yaml
+  vars:
+    ansible_become_pass: "{{ localhost_become_pass }}"
+    openvpn_location: "/Users/jdemmers/Desktop/playground/AquaBrain-Sem1/openvpn.ovpn"
+  tasks:
+    - name: Disconnect Cisco VPN
+      shell: |
+        /opt/cisco/secureclient/bin/vpn -s disconnect
+      args:
+        executable: /bin/bash
+    - name: Connect OVPN
+      shell: |
+        openvpn --config {{ openvpn_location }} --daemon
+- name: Add all hosts SSH keys to known hosts file
+  hosts: kubecluster
+  gather_facts: False
+  tasks:
+    - name: Scan the SSH key of the host
+      shell: ssh-keyscan -H {{ inventory_hostname }} >> K8s/known_hosts
+      delegate_to: localhost
+      changed_when: False
+- name: Install requirements
+  hosts: 
+    - kubecluster
+  vars_files:
+    - K8s/secrets.yaml
+  vars:
+    ansible_ssh_common_args: '-o UserKnownHostsFile=K8s/known_hosts'
+    ansible_become_pass: "{{ vault_become_pass }}"
+  gather_facts: yes
+  connection: ssh
+  become: yes
+  
+  tasks:
+    - name: Make the Swap inactive
+      command: swapoff -a
+
+    - name: Remove Swap entry from /etc/fstab.
+      lineinfile:
+        dest: /etc/fstab
+        regexp: swap
+        state: absent
+
+    - name: Create a empty file for containerd module.
+      copy:
+        content: ""
+        dest: /etc/modules-load.d/containerd.conf
+        force: no
+
+    - name: Configure module for containerd.
+      blockinfile:
+        path: /etc/modules-load.d/containerd.conf 
+        block: |
+            overlay
+            br_netfilter
+
+    - name: Create a empty file for kubernetes sysctl params.
+      copy:
+        content: ""
+        dest: /etc/sysctl.d/99-kubernetes-cri.conf
+        force: no
+
+    - name: Configure sysctl params for Kubernetes.
+      lineinfile:
+        path: /etc/sysctl.d/99-kubernetes-cri.conf 
+        line: "{{ item }}"
+      with_items:
+        - 'net.bridge.bridge-nf-call-iptables  = 1'
+        - 'net.ipv4.ip_forward                 = 1'
+        - 'net.bridge.bridge-nf-call-ip6tables = 1'
+
+    - name: Apply sysctl params without reboot.
+      command: sysctl --system
+
+    - name: Installing Prerequisites for Kubernetes
+      apt: 
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg-agent
+          - vim
+          - software-properties-common
+        state: present
+
+    - name: Add Docker’s official GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+        
+    - name: Add Docker Repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable
+        state: present
+        filename: docker
+        update_cache: yes
+
+    - name: "Update cache & Full system update"
+      apt:
+        update_cache: true
+        upgrade: dist
+        cache_valid_time: 3600
+        force_apt_get: true
+
+    - name: Install containerd.
+      apt: 
+        name:
+          - containerd.io
+        state: present
+
+    - name: Hold containerd
+      dpkg_selections:
+        name: containerd.io
+        selection: hold
+
+    - name: Configure containerd (1/2).
+      file:
+        path: /etc/containerd
+        state: directory
+
+    - name: Configure containerd (2/2).
+      template:
+        src: ../K8s/containerd.toml.j2
+        dest: /etc/containerd/config.toml
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Enable containerd service, and start it.
+      systemd: 
+        name: containerd
+        state: restarted
+        enabled: yes
+        daemon-reload: yes
+
+    - name: Add Google official GPG key
+      apt_key:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        state: present
+
+    - name: Add Kubernetes Repository
+      apt_repository:
+        repo: deb http://apt.kubernetes.io/ kubernetes-xenial main 
+        state: present
+        filename: kubernetes
+        mode: 0600
+
+    - name: "Update cache & Full system update"
+      apt:
+        update_cache: true
+        upgrade: dist
+        cache_valid_time: 3600
+        force_apt_get: true
+
+    - name: Installing Kubernetes Cluster Packages.
+      apt: 
+        name:
+          - kubeadm
+          - kubectl
+          - kubelet
+        state: present
+
+    - name: Hold Kubernetes packages
+      dpkg_selections:
+        name: "{{ item }}"
+        selection: hold
+      loop:
+        - kubeadm
+        - kubectl
+        - kubelet
+
+    - name: Enable service kubelet, and enable persistently
+      service: 
+        name: kubelet
+        enabled: yes
+
+    - name: Reboot all the kubernetes nodes.
+      block:
+        - name: Display a message before rebooting
+          debug:
+            msg: "Rebooting all the kubernetes nodes in 10 seconds."
+        - name: Reboot all the kubernetes nodes.
+          reboot:
+            connect_timeout: 5
+            reboot_timeout: 3600
+            pre_reboot_delay: 0
+            post_reboot_delay: 30
+            test_command: whoami
+- name: Configure K8s Masters
+  hosts: 
+    - kubemaster
+  vars_files:
+    - K8s/secrets.yaml
+  vars:
+    ansible_become_pass: "{{ vault_become_pass }}"
+    ansible_ssh_common_args: '-o UserKnownHostsFile=K8s/known_hosts'
+    LB_INTERFACE: "ens33"
+    LB_ROUTER_ID: 51
+    LB_AUTH_PASS: 42
+    LB_APISERVER_VIP: "10.1.0.2"
+    LB_APISERVER_DEST_PORT : 8443
+  gather_facts: yes
+  connection: ssh
+  become: yes
+  
+  tasks:
+    - name: Ensure /etc/kubernetes exists.
+      file:
+        path: /etc/kubernetes
+        state: directory
+
+    - name: copy kubeadm configuration file
+      template:
+        src: ../K8s/kubeadm.yaml.j2
+        dest: /etc/kubernetes/kubeadm.yaml
+        owner: root
+        group: root
+        mode: '0600'
+
+    - name: copy flannel configuration file
+      template:
+        src: ../K8s/kube-flannel.yaml
+        dest: /etc/kubernetes/kube-flannel.yaml
+        owner: root
+        group: root
+        mode: '0600'
+
+    - name: Ensure /etc/keepalived exists
+      file:
+        path: /etc/keepalived
+        state: directory
+      
+    - name: Copy keepalived.conf
+      template:
+        src: ../K8s/keepalived.conf.j2
+        dest: /etc/keepalived/keepalived.conf
+        owner: root
+        group: root
+        mode: '0644'
+    
+    - name: Copy check_apiserver.sh
+      template:
+        src: ../K8s/check_apiserver.sh.j2
+        dest: /etc/keepalived/check_apiserver.sh
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Ensure /etc/haproxy exists
+      file:
+        path: /etc/haproxy
+        state: directory
+
+    - name: Copy haproxy.cfg
+      template:
+        src: ../K8s/haproxy.cfg.j2
+        dest: /etc/haproxy/haproxy.cfg
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Ensure /etc/kubernetes/manifests exists
+      file:
+        path: /etc/kubernetes/manifests
+        state: directory
+
+    - name: Copy manifests/haproxy.yaml.j2
+      template:
+        src: ../K8s/manifests/haproxy.yaml.j2
+        dest: /etc/kubernetes/manifests/haproxy.yaml
+        owner: root
+        group: root
+        mode: '0644'
+    
+    - name: Copy manifests/keepalived.yaml
+      template:
+        src: ../K8s/manifests/keepalived.yaml
+        dest: /etc/kubernetes/manifests/keepalived.yaml
+        owner: root
+        group: root
+        mode: '0644'
+- name: Initialize K8s Cluster
+  hosts:
+    - kubecluster
+  vars_files:
+    - K8s/secrets.yaml
+  vars:
+    ansible_become_pass: "{{ vault_become_pass }}"
+    ansible_ssh_common_args: '-o UserKnownHostsFile=K8s/known_hosts'
+  gather_facts: yes
+  connection: ssh
+  become: yes
+  tasks:
+    - name: Initialize Master01
+      shell: "kubeadm init --config=/etc/kubernetes/kubeadm.yaml --upload-certs"
+      register: init_output
+      delegate_to: master01.aquabrain.lan
+    - name: Extract join command
+      set_fact:
+        join_command: "{{ init_output.stdout_lines | join('\n') | regex_search('(kubeadm join 10.1.0.2:8443 --token [^\\n]* --control-plane --certificate-key [^\\n]*)', '\\1', multiline=True) }}"
+      run_once: true
+      delegate_to: master01.aquabrain.lan
+    - name: Ensure .kube directory exists
+      file:
+        path: "/home/aquabrain/.kube"
+        state: directory
+        owner: aquabrain
+        group: aquabrain
+        mode: '0755'
+      delegate_to: master01.aquabrain.lan
+    - name: Copy administered kube config file
+      copy:
+        src: "/etc/kubernetes/admin.conf"
+        dest: "/home/aquabrain/.kube/config"
+        owner: aquabrain
+        group: aquabrain
+        mode: '0644'
+        remote_src: true
+      delegate_to: master01.aquabrain.lan
+    - name: Apply user owmership to kube config
+      command: chown $(id -u aquabrain):$(id -g aquabrain) /home/aquabrain/.kube/config
+      delegate_to: master01.aquabrain.lan
+    - name: Apply CNI (Flannel)
+      shell: "kubectl apply -f /etc/kubernetes/kube-flannel.yaml"
+      environment:
+        KUBECONFIG: "/home/aquabrain/.kube/config"
+      delegate_to: master01.aquabrain.lan
+    - name: Join other masters
+      shell: "{{ join_command }}"
+      delegate_to: "{{ item }}"
+      loop: "{{ groups['kubemaster'] }}"
+      loop_control:
+        label: "{{ item }}"
+      when: inventory_hostname != 'master01.aquabrain.lan'
+- name: Disconnect OVPN
+  hosts: localhost
+  gather_facts: False
+  become: true
+  vars_files:
+    - K8s/secrets.yaml
+  vars:
+    ansible_become_pass: "{{ localhost_become_pass }}"
+    openvpn_location: "/Users/jdemmers/Desktop/playground/AquaBrain-Sem1/openvpn.ovpn"
+  tasks:
+    - name: Disconnect OVPN
+      shell: "pgrep openvpn"
+      register: openvpn_pid
+    - name: Kill OpenVPN Daemon
+      command: "kill -9 {{ openvpn_pid.stdout }}"
+      when: openvpn_pid.stdout | length > 0

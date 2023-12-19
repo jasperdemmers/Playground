@@ -1,13 +1,13 @@
 apiVersion: kubeadm.k8s.io/v1beta3
 kind: InitConfiguration
 nodeRegistration:
-  name: "master01.aquabrain.lan"
-  criSocket: "/var/run/dockershim.sock"
+  name: "{{ inventory_hostname.split('.')[0] }}"
+  criSocket: "/run/containerd/containerd.sock"
   kubeletExtraArgs:
     cgroup-driver: systemd
     fail-swap-on: "false"
 localAPIEndpoint:
-  advertiseAddress: "k8s.aquabrain.lan"
+  advertiseAddress: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}"
   bindPort: 6443
 
 ---
@@ -18,7 +18,7 @@ networking:
   podSubnet: "10.244.0.0/16"  # Flannel's default Subnet
   dnsDomain: "cluster.lan"
 kubernetesVersion: "stable"
-controlPlaneEndpoint: "k8s.aquabrain.lan:6443"  # Replace with your values
+controlPlaneEndpoint: "10.1.0.2:8443"  # Replace with your values
 apiServer:
   certSANs:
   - "10.1.0.2"

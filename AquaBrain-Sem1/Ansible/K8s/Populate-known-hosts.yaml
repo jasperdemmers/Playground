@@ -1,0 +1,8 @@
+- name: Add all hosts SSH keys to known hosts file
+  hosts: kubecluster
+  gather_facts: False
+  tasks:
+    - name: Scan the SSH key of the host
+      shell: ssh-keyscan -H {{ inventory_hostname }} >> ./known_hosts
+      delegate_to: localhost
+      changed_when: False

@@ -1,0 +1,53 @@
+- name: Initialize K8s Cluster
+  hosts:
+    - kubecluster
+  vars_files:
+    - secrets.yaml
+  vars:
+    ansible_become_pass: "{{ vault_become_pass }}"
+    ansible_ssh_common_args: '-o UserKnownHostsFile=./known_hosts'
+  gather_facts: yes
+  connection: ssh
+  become: yes
+  tasks:
+    - name: Initialize Master01
+      shell: "kubeadm init --config=/etc/kubernetes/kubeadm.yaml --upload-certs >> cluster_initialized.log"
+      args:
+        chdir: /home/aquabrain
+        creates: cluster_initialized.log
+      register: init_output
+      delegate_to: master01.aquabrain.lan
+    - name: Extract join command
+      set_fact:
+        join_command: "{{ init_output.stdout_lines | join('\n') | regex_search('(kubeadm join 10.1.0.2:8443 --token [^\\n]* --control-plane --certificate-key [^\\n]*)', '\\1', multiline=True) }}"
+      run_once: true
+      delegate_to: master01.aquabrain.lan
+    - name: Ensure .kube directory exists
+      file:
+        path: "/home/aquabrain/.kube"
+        state: directory
+        owner: aquabrain
+        group: aquabrain
+        mode: '0755'
+      delegate_to: master01.aquabrain.lan
+    - name: Copy administered kube config file
+      copy:
+        src: "/etc/kubernetes/admin.conf"
+        dest: "/home/aquabrain/.kube/config"
+        owner: aquabrain
+        group: aquabrain
+        mode: '0644'
+        remote_src: true
+      delegate_to: master01.aquabrain.lan
+    - name: Apply CNI (Flannel)
+      shell: "kubectl apply -f /etc/kubernetes/kube-flannel.yaml"
+      environment:
+        KUBECONFIG: "/home/aquabrain/.kube/config"
+      delegate_to: master01.aquabrain.lan
+    - name: Join other masters
+      shell: "{{ join_command }}"
+      delegate_to: "{{ item }}"
+      loop: "{{ groups['kubemaster'] }}"
+      loop_control:
+        label: "{{ item }}"
+      when: inventory_hostname != 'master01.aquabrain.lan'

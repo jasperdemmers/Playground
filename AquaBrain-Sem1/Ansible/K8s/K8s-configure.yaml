@@ -4,11 +4,12 @@
     - secrets.yaml
   vars:
     ansible_become_pass: "{{ vault_become_pass }}"
+    ansible_ssh_common_args: '-o UserKnownHostsFile=./known_hosts'
     LB_INTERFACE: "ens33"
     LB_ROUTER_ID: 51
     LB_AUTH_PASS: 42
     LB_APISERVER_VIP: "10.1.0.2"
-    LB_APISERVER_DEST_PORT : 6443
+    LB_APISERVER_DEST_PORT : 8443
   gather_facts: yes
   connection: ssh
   become: yes
@@ -21,7 +22,7 @@
 
     - name: copy kubeadm configuration file
       template:
-        src: ../../K8s/kubeadm.yaml
+        src: ../../K8s/kubeadm.yaml.j2
         dest: /etc/kubernetes/kubeadm.yaml
         owner: root
         group: root

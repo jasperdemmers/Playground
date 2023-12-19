@@ -8,7 +8,7 @@
     template_name: "DMZ74222 - Ubuntu"
     vlanB_folder: "DMZ/DMZ74222/vlanB"
   tasks:
-    - name: Remove Master noded
+    - name: Remove Master nodes
       community.vmware.vmware_guest:
         #vCenter specific
         hostname: "{{ vcenter_hostname }}"

@@ -1,6 +1,9 @@
 ---
 - hosts: kubecluster
   become: false
+  gather_facts: false
+  vars:
+    ansible_ssh_common_args: '-o UserKnownHostsFile=./known_hosts'
   tasks:
     - name: Init results list
       set_fact:

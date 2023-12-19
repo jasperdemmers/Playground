@@ -12,20 +12,14 @@ global
 # use if not designated in their block
 #---------------------------------------------------------------------
 defaults
-    mode                    http
+    mode                    tcp
     log                     global
-    option                  httplog
-    option                  dontlognull
-    option http-server-close
-    option forwardfor       except 127.0.0.0/8
+    option                  tcplog
     option                  redispatch
     retries                 1
-    timeout http-request    10s
-    timeout queue           20s
     timeout connect         5s
     timeout client          20s
     timeout server          20s
-    timeout http-keep-alive 10s
     timeout check           10s
 
 #---------------------------------------------------------------------
@@ -41,11 +35,9 @@ frontend apiserver
 # round robin balancing for apiserver
 #---------------------------------------------------------------------
 backend apiserverbackend
-    option httpchk GET /healthz
-    http-check expect status 200
     mode tcp
-    option ssl-hello-chk
+    option tcp-check
     balance     roundrobin
-        server master01.aquabrain.lan:6443 check
-        server master02.aquabrain.lan:6443 check
-        server master03.aquabrain.lan:6443 check
+        server master01 master01.aquabrain.lan:6443 check
+        server master02 master02.aquabrain.lan:6443 check
+        server master03 master03.aquabrain.lan:6443 check

@@ -3,6 +3,7 @@
   vars_files:
     - secrets.yaml
   vars:
+    ansible_ssh_common_args: '-o UserKnownHostsFile=./known_hosts'
     ansible_become_pass: "{{ vault_become_pass }}"
   gather_facts: yes
   connection: ssh
@@ -152,10 +153,14 @@
         enabled: yes
 
     - name: Reboot all the kubernetes nodes.
-      reboot:
-      msg: "Reboot initiated by Ansible"
-      connect_timeout: 5
-      reboot_timeout: 3600
-      pre_reboot_delay: 0
-      post_reboot_delay: 30
-      test_command: whoami
+      block:
+        - name: Display a message before rebooting
+          debug:
+            msg: "Rebooting all the kubernetes nodes in 10 seconds."
+        - name: Reboot all the kubernetes nodes.
+          reboot:
+            connect_timeout: 5
+            reboot_timeout: 3600
+            pre_reboot_delay: 0
+            post_reboot_delay: 30
+            test_command: whoami
