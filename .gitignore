@@ -1,4 +1,5 @@
 temp
+**/tmp
 **/secrets.yaml
 **/*.ovpn
 **/known_hosts
