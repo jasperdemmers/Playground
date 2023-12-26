@@ -7,3 +7,5 @@ AquaBrain-Sem1/Ansible/Netlab/secrets.yaml
 AquaBrain-Sem1/Ansible/K8s/secrets.yaml
 videos
 **/Keys/*
+.obsidian
+.vscode
