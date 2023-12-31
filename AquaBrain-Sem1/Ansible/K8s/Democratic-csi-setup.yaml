@@ -1,0 +1,44 @@
+- hosts:
+    - kubecluster
+  vars_files:
+    - secrets.yaml
+  vars:
+    ansible_become_pass: "{{ vault_become_pass }}"
+    ansible_ssh_common_args: '-o UserKnownHostsFile=./known_hosts'
+  gather_facts: yes
+  connection: ssh
+  become: yes
+  
+  tasks:
+    - name: Install necassary packages
+      apt:
+        name:
+          - libnfs-utils
+          - open-iscsi
+          - lsscsi
+          - sg3-utils
+          - multipath-tools
+          - scsitools
+        state: present
+    - name: Setup multipath configuration
+      block:
+        - copy:
+            content: |
+              defaults {
+                  user_friendly_names yes
+                  find_multipaths yes
+              }
+            dest: /etc/multipath.conf
+          become: yes
+
+        - name: Enable and restart multipath-tools service
+          systemd:
+            name: multipath-tools
+            enabled: yes
+            state: restarted
+
+        - name: Enable and start open-iscsi
+          systemd:
+            name: open-iscsi
+            enabled: yes
+            state: started
