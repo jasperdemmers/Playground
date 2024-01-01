@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: aquabrainapi-service
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8080
+  selector:
+    app: aquabrainapi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aquabrainapi
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: aquabrainapi
+  template:
+    metadata:
+      labels:
+        app: aquabrainapi
+    spec:
+      containers:
+      - name: aquabrainapi
+        image: ghcr.io/jasperdemmers/aquabrainapi:sha-44486ca
+        ports:
+        - containerPort: 8080
+        env:
+        - name: BASIC_AUTH_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: basic-auth
+              key: USERNAME
+        - name: BASIC_AUTH_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: basic-auth
+              key: PASSWORD
+        - name: MYSQL_HOST
+          valueFrom:
+            secretKeyRef:
+              name: db-auth
+              key: HOST
+        - name: MYSQL_DATABASE
+          valueFrom:
+            secretKeyRef:
+              name: db-auth
+              key: DATABASE
+        - name: MYSQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: db-auth
+              key: USER
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-auth
+              key: PASSWORD
