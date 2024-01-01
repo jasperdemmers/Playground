@@ -34,5 +34,8 @@ kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.12/conf
 ```
 Apply the metallb-IPAddressPool.yaml
 ```bash
-kubectl apply -f manifests/metallb-IPAddressPool.yaml
+kubectl apply -f manifests/IPAddressPool.yaml
 ```
+Apply the metallb-L2Advertisement.yaml
+```bash
+kubectl apply -f manifests/L2Advertisement.yaml```

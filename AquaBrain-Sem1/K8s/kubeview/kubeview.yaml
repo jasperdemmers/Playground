@@ -1,0 +1,10 @@
+ingress:
+  enabled: false
+service:
+  type: LoadBalancer
+
+# helm install kubeview ./kubeview-x.x.x.tgz -f myvalues.yaml
+
+# kubectl get svc kubeview
+
+# helm uninstall kubeview

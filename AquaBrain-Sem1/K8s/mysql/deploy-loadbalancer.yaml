@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-loadbalancer
+spec:
+  type: LoadBalancer
+  selector:
+    component: mysqlrouter
+    mysql.oracle.com/cluster: mysql-cluster
+    tier: mysql
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: 6446
+    - name: mysqlx
+      port: 33060
+      targetPort: 6448
+    - name: mysql-alternate
+      port: 6446
+      targetPort: 6446
+    - name: mysqlx-alternate
+      port: 6448
+      targetPort: 6448
+    - name: mysql-ro
+      port: 6447
+      targetPort: 6447
+    - name: mysqlx-ro
+      port: 6449
+      targetPort: 6449
+    - name: mysql-rw-split
+      port: 6450
+      targetPort: 6450
+    - name: router-rest
+      port: 8443
+      targetPort: 8443

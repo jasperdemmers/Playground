@@ -1,3 +1,10 @@
+# Add Repo
+```bash
+helm repo add democratic-csi https://democratic-csi.github.io/charts/
+helm repo update
+```
+
+# Install CSI
 ```bash
 helm upgrade --install --create-namespace --values nfs.yaml --namespace storage nfs democratic-csi/democratic-csi
 
