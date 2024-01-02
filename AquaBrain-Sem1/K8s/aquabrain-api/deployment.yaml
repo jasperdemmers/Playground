@@ -26,7 +26,8 @@ spec:
     spec:
       containers:
       - name: aquabrainapi
-        image: ghcr.io/jasperdemmers/aquabrainapi:sha-44486ca
+        image: ghcr.io/jasperdemmers/aquabrainapi:main
+        imagePullPolicy: Always
         ports:
         - containerPort: 8080
         env:
