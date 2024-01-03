@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx 
+  namespace: traefik 
+  labels:
+    app: nginx
+spec:
+  selector:
+    matchLabels:
+      app: nginx 
+  replicas: 2 
+  template:
+    metadata:
+      labels:
+        app: nginx 
+    spec:
+      containers:
+      - name: nginx 
+        image: nginx:latest 
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name:  nginx
+  namespace: traefik
+spec:
+  selector:
+    app:  nginx
+  type:  ClusterIP
+  ports:
+  - name:  http
+    port:  80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx
+  namespace: traefik
+spec:
+  rules:
+  - host: "demo.jdemmers.dev"
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx
+            port:
+              number: 80
+  # (Optional) TLS settings
+  # tls:
+  # - hosts:
+  #   - your-hostname.com  # Your hostname
+  #   secretName: your-secret  # Your TLS Secret
+  # ---
