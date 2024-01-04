@@ -39,6 +39,26 @@ spec:
       port: 8080
   tls:
     secretName: api.jdemmers.dev
+#---
+#apiVersion: autoscaling/v2
+#kind: HorizontalPodAutoscaler
+#metadata:
+  #name: aquabrainapi
+  #namespace: aquabrain-api
+#spec:
+  #scaleTargetRef:
+    #apiVersion: apps/v1
+    #kind: Deployment
+    #name: aquabrainapi
+  #minReplicas: 2
+  #maxReplicas: 10
+  #metrics:
+  #- type: Resource
+    #resource:
+      #name: cpu
+      #target:
+        #type: Utilization
+        #averageUtilization: 50
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -59,6 +79,13 @@ spec:
       - name: aquabrainapi
         image: ghcr.io/jasperdemmers/aquabrainapi:main
         imagePullPolicy: Always
+        #resources:
+          #requests:
+            #cpu: 300m
+            #memory: 150Mi
+          #limits:
+            #cpu: 600m
+            #memory: 256Mi
         ports:
         - containerPort: 8080
         env:
