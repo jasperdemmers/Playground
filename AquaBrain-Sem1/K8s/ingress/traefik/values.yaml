@@ -5,8 +5,6 @@ logs:
 ports:
   web:
     port: 80
-    redirectTo:
-      port: websecure
   websecure:
     port: 443
 

@@ -26,6 +26,21 @@ spec:
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
+  name: aquabrainapi-http
+  namespace: aquabrain-api
+spec:
+  entryPoints:
+    - web
+  routes:
+  - match: PathPrefix(`/`)
+    kind: Rule
+    services:
+    - name: aquabrainapi
+      port: 8080
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
   name: aquabrainapi
   namespace: aquabrain-api
 spec:
